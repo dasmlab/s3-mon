@@ -8,7 +8,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const ns = "s3mon"
+const (
+	ns = "s3mon"
+
+	labelEndpointNS = "endpoint_namespace"
+	labelEndpoint   = "endpoint"
+	labelBucket     = "bucket"
+	labelPrefix     = "prefix"
+	labelDepth      = "depth"
+)
 
 // Collector holds Prometheus metrics for all S3Endpoints.
 type Collector struct {
@@ -26,39 +34,43 @@ type Collector struct {
 
 // New registers metrics on reg.
 func New(reg prometheus.Registerer) *Collector {
+	epLabels := []string{labelEndpointNS, labelEndpoint}
+	bucketLabels := []string{labelEndpointNS, labelEndpoint, labelBucket}
+	folderLabels := []string{labelEndpointNS, labelEndpoint, labelBucket, labelDepth}
+	prefixLabels := []string{labelEndpointNS, labelEndpoint, labelBucket, labelPrefix, labelDepth}
 	c := &Collector{
 		bucketSize: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns, Name: "bucket_size_bytes",
 			Help: "Total size in bytes of an S3 bucket",
-		}, []string{"endpoint_namespace", "endpoint", "bucket"}),
+		}, bucketLabels),
 		bucketObjects: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns, Name: "bucket_objects",
 			Help: "Number of objects in an S3 bucket",
-		}, []string{"endpoint_namespace", "endpoint", "bucket"}),
+		}, bucketLabels),
 		folderCount: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns, Name: "folder_count",
 			Help: "Number of common-prefix folders at a given depth",
-		}, []string{"endpoint_namespace", "endpoint", "bucket", "depth"}),
+		}, folderLabels),
 		prefixSize: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns, Name: "prefix_size_bytes",
 			Help: "Total size in bytes under a prefix (folder)",
-		}, []string{"endpoint_namespace", "endpoint", "bucket", "prefix", "depth"}),
+		}, prefixLabels),
 		prefixObjects: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns, Name: "prefix_objects",
 			Help: "Number of objects under a prefix (folder)",
-		}, []string{"endpoint_namespace", "endpoint", "bucket", "prefix", "depth"}),
+		}, prefixLabels),
 		scrapeOK: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns, Name: "scrape_success",
 			Help: "1 if last scrape succeeded, else 0",
-		}, []string{"endpoint_namespace", "endpoint"}),
+		}, epLabels),
 		scrapeSeconds: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns, Name: "scrape_duration_seconds",
 			Help: "Duration of the last scrape",
-		}, []string{"endpoint_namespace", "endpoint"}),
+		}, epLabels),
 		lastScrape: prometheus.NewGaugeVec(prometheus.GaugeOpts{
 			Namespace: ns, Name: "last_scrape_timestamp",
 			Help: "Unix timestamp of the last scrape attempt",
-		}, []string{"endpoint_namespace", "endpoint"}),
+		}, epLabels),
 	}
 	reg.MustRegister(
 		c.bucketSize, c.bucketObjects, c.folderCount,
@@ -72,11 +84,12 @@ func New(reg prometheus.Registerer) *Collector {
 func (c *Collector) ClearEndpoint(namespace, name string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.bucketSize.DeletePartialMatch(prometheus.Labels{"endpoint_namespace": namespace, "endpoint": name})
-	c.bucketObjects.DeletePartialMatch(prometheus.Labels{"endpoint_namespace": namespace, "endpoint": name})
-	c.folderCount.DeletePartialMatch(prometheus.Labels{"endpoint_namespace": namespace, "endpoint": name})
-	c.prefixSize.DeletePartialMatch(prometheus.Labels{"endpoint_namespace": namespace, "endpoint": name})
-	c.prefixObjects.DeletePartialMatch(prometheus.Labels{"endpoint_namespace": namespace, "endpoint": name})
+	match := prometheus.Labels{labelEndpointNS: namespace, labelEndpoint: name}
+	c.bucketSize.DeletePartialMatch(match)
+	c.bucketObjects.DeletePartialMatch(match)
+	c.folderCount.DeletePartialMatch(match)
+	c.prefixSize.DeletePartialMatch(match)
+	c.prefixObjects.DeletePartialMatch(match)
 }
 
 // SetScrapeMeta updates scrape health gauges.

@@ -37,8 +37,8 @@ type Result struct {
 
 // Client wraps aws-sdk-go-v2 S3.
 type Client struct {
-	s3     *s3.Client
-	logf   func(string, ...any)
+	s3   *s3.Client
+	logf func(string, ...any)
 }
 
 // New builds an S3 client from Creds.

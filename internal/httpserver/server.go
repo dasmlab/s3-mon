@@ -25,6 +25,8 @@ import (
 //go:embed templates/*
 var templateFS embed.FS
 
+const jsonKeyError = "error"
+
 // Server exposes Prometheus metrics, health, JSON CRUD API, and a simple HTML UI.
 type Server struct {
 	Client client.Client
@@ -136,7 +138,7 @@ func (s *Server) listEndpoints(c *gin.Context) {
 		opts = append(opts, client.InNamespace(ns))
 	}
 	if err := s.Client.List(c.Request.Context(), list, opts...); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{jsonKeyError: err.Error()})
 		return
 	}
 	out := make([]endpointView, 0, len(list.Items))
@@ -158,7 +160,7 @@ func (s *Server) getEndpoint(c *gin.Context) {
 func (s *Server) createEndpoint(c *gin.Context) {
 	var req createRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{jsonKeyError: err.Error()})
 		return
 	}
 	ep := &s3monv1alpha1.S3Endpoint{
@@ -180,7 +182,7 @@ func (s *Server) createEndpoint(c *gin.Context) {
 	if req.Spec.Interval != "" {
 		d, err := time.ParseDuration(req.Spec.Interval)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid interval: %v", err)})
+			c.JSON(http.StatusBadRequest, gin.H{jsonKeyError: fmt.Sprintf("invalid interval: %v", err)})
 			return
 		}
 		ep.Spec.Interval = &metav1.Duration{Duration: d}
@@ -195,7 +197,7 @@ func (s *Server) createEndpoint(c *gin.Context) {
 func (s *Server) updateEndpoint(c *gin.Context) {
 	var req createRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{jsonKeyError: err.Error()})
 		return
 	}
 	ns, name := c.Param("namespace"), c.Param("name")
@@ -215,7 +217,7 @@ func (s *Server) updateEndpoint(c *gin.Context) {
 	if req.Spec.Interval != "" {
 		d, err := time.ParseDuration(req.Spec.Interval)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid interval: %v", err)})
+			c.JSON(http.StatusBadRequest, gin.H{jsonKeyError: fmt.Sprintf("invalid interval: %v", err)})
 			return
 		}
 		ep.Spec.Interval = &metav1.Duration{Duration: d}
@@ -251,13 +253,13 @@ func (s *Server) fetch(ctx context.Context, ns, name string) (*s3monv1alpha1.S3E
 func writeK8sErr(c *gin.Context, err error) {
 	switch {
 	case apierrors.IsNotFound(err):
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		c.JSON(http.StatusNotFound, gin.H{jsonKeyError: err.Error()})
 	case apierrors.IsAlreadyExists(err):
-		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+		c.JSON(http.StatusConflict, gin.H{jsonKeyError: err.Error()})
 	case apierrors.IsInvalid(err), apierrors.IsBadRequest(err):
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{jsonKeyError: err.Error()})
 	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{jsonKeyError: err.Error()})
 	}
 }
 

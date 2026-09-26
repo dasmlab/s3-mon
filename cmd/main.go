@@ -71,7 +71,8 @@ func main() {
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
 	var ginAddr string
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the controller-runtime metrics endpoint binds to.")
+	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080",
+		"The address the controller-runtime metrics endpoint binds to.")
 	flag.StringVar(&ginAddr, "http-bind-address", ":8090", "Gin HTTP server for UI, CRUD API, /metrics, and /healthz.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
