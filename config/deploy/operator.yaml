@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: s3-mon-system
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: s3-mon-controller
+  namespace: s3-mon-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: s3-mon-manager-role
+rules:
+  - apiGroups: ["s3mon.dasmlab.org"]
+    resources: ["s3endpoints"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["s3mon.dasmlab.org"]
+    resources: ["s3endpoints/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["s3mon.dasmlab.org"]
+    resources: ["s3endpoints/finalizers"]
+    verbs: ["update"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: s3-mon-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: s3-mon-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: s3-mon-controller
+    namespace: s3-mon-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3-mon-controller
+  namespace: s3-mon-system
+  labels:
+    app: s3-mon
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: s3-mon
+  template:
+    metadata:
+      labels:
+        app: s3-mon
+    spec:
+      serviceAccountName: s3-mon-controller
+      containers:
+        - name: manager
+          image: s3-mon:dev
+          imagePullPolicy: IfNotPresent
+          args:
+            - --metrics-bind-address=:8080
+            - --http-bind-address=:8090
+            - --health-probe-bind-address=:8081
+            - --metrics-secure=false
+            - --leader-elect=false
+          ports:
+            - name: metrics-crt
+              containerPort: 8080
+            - name: metrics-gin
+              containerPort: 8090
+            - name: health
+              containerPort: 8081
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: s3-mon-metrics
+  namespace: s3-mon-system
+  labels:
+    app: s3-mon
+spec:
+  selector:
+    app: s3-mon
+  ports:
+    - name: metrics
+      port: 8090
+      targetPort: 8090

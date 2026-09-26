@@ -1,0 +1,29 @@
+# This rule is not used by the project s3-mon itself.
+# It is provided to allow the cluster admin to help manage permissions for users.
+#
+# Grants read-only access to s3mon.dasmlab.org resources.
+# This role is intended for users who need visibility into these resources
+# without permissions to modify them. It is ideal for monitoring purposes and limited-access viewing.
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: s3-mon
+    app.kubernetes.io/managed-by: kustomize
+  name: s3endpoint-viewer-role
+rules:
+- apiGroups:
+  - s3mon.dasmlab.org
+  resources:
+  - s3endpoints
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - s3mon.dasmlab.org
+  resources:
+  - s3endpoints/status
+  verbs:
+  - get

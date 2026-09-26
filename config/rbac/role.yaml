@@ -1,0 +1,40 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - s3mon.dasmlab.org
+  resources:
+  - s3endpoints
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - s3mon.dasmlab.org
+  resources:
+  - s3endpoints/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - s3mon.dasmlab.org
+  resources:
+  - s3endpoints/status
+  verbs:
+  - get
+  - patch
+  - update

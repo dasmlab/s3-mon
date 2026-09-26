@@ -1,0 +1,4 @@
+## Append samples of your project ##
+resources:
+- s3mon_v1alpha1_s3endpoint.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples
