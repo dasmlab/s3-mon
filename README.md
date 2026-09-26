@@ -37,6 +37,18 @@ stringData:
 
 Also accepted: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, and a Thanos objstore YAML blob under key `config`.
 
+## UI + CRUD API (Gin `:8090`)
+
+- HTML UI: `GET /` — table of S3Endpoints with create/edit/delete
+- JSON API:
+  - `GET /api/v1/s3endpoints[?namespace=]`
+  - `GET /api/v1/s3endpoints/:namespace/:name`
+  - `POST /api/v1/s3endpoints`
+  - `PUT /api/v1/s3endpoints/:namespace/:name`
+  - `DELETE /api/v1/s3endpoints/:namespace/:name`
+
+Handler tests live in `internal/httpserver`.
+
 ## Metrics (Gin `:8090/metrics`)
 
 | Metric | Labels |

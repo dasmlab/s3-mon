@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}} · S3Endpoints</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --panel: #171e26;
+      --line: #2a3542;
+      --text: #e7eef5;
+      --muted: #8b9aab;
+      --accent: #3d9b7a;
+      --danger: #c45c5c;
+      --warn: #c4a35c;
+      --font: "IBM Plex Sans", "Segoe UI", sans-serif;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      font-family: var(--font); color: var(--text);
+      background:
+        radial-gradient(1200px 600px at 10% -10%, #1a2a28 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #1a2230 0%, transparent 50%),
+        var(--bg);
+    }
+    header {
+      padding: 1.75rem 2rem 1rem;
+      border-bottom: 1px solid var(--line);
+    }
+    header h1 {
+      margin: 0; font-size: 1.65rem; letter-spacing: 0.02em;
+      font-weight: 600;
+    }
+    header p { margin: 0.35rem 0 0; color: var(--muted); font-size: 0.95rem; }
+    main { padding: 1.25rem 2rem 3rem; max-width: 1200px; }
+    .toolbar {
+      display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: end;
+      margin-bottom: 1.25rem;
+    }
+    label { display: grid; gap: 0.25rem; font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    input, select, button, textarea {
+      font: inherit; color: var(--text); background: var(--panel);
+      border: 1px solid var(--line); border-radius: 4px; padding: 0.5rem 0.65rem;
+    }
+    input:focus, select:focus, textarea:focus { outline: 1px solid var(--accent); }
+    button {
+      cursor: pointer; background: var(--accent); border-color: transparent;
+      color: #04140f; font-weight: 600;
+    }
+    button.secondary { background: transparent; color: var(--text); border-color: var(--line); font-weight: 500; }
+    button.danger { background: var(--danger); color: #1a0808; }
+    table {
+      width: 100%; border-collapse: collapse; background: var(--panel);
+      border: 1px solid var(--line); border-radius: 6px; overflow: hidden;
+    }
+    th, td { text-align: left; padding: 0.7rem 0.85rem; border-bottom: 1px solid var(--line); font-size: 0.92rem; }
+    th { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+    tr:last-child td { border-bottom: 0; }
+    .badge {
+      display: inline-block; padding: 0.15rem 0.45rem; border-radius: 3px;
+      font-family: var(--mono); font-size: 0.75rem;
+    }
+    .ok { background: rgba(61,155,122,0.2); color: #7fd4b4; }
+    .bad { background: rgba(196,92,92,0.2); color: #e8a0a0; }
+    .muted { color: var(--muted); font-family: var(--mono); font-size: 0.85rem; }
+    .panel {
+      margin-top: 1.5rem; padding: 1rem 1.1rem; background: var(--panel);
+      border: 1px solid var(--line); border-radius: 6px;
+    }
+    .panel h2 { margin: 0 0 0.85rem; font-size: 1rem; }
+    .grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.75rem;
+    }
+    .actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+    #msg { min-height: 1.2rem; color: var(--warn); font-size: 0.9rem; margin: 0.5rem 0 0; }
+    a { color: #7fb7d4; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>s3-mon</h1>
+    <p>S3Endpoint inventory — list, create, update, delete. Metrics at <a href="/metrics">/metrics</a>.</p>
+  </header>
+  <main>
+    <form class="toolbar" method="get" action="/">
+      <label>Namespace filter
+        <input name="namespace" value="{{.Namespace}}" placeholder="all namespaces" />
+      </label>
+      <button type="submit" class="secondary">Filter</button>
+      <span class="muted">{{.Count}} endpoint(s)</span>
+    </form>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Namespace</th>
+          <th>Secret</th>
+          <th>Ready</th>
+          <th>Buckets</th>
+          <th>Last success</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        {{range .Items}}
+        <tr data-ns="{{.Namespace}}" data-name="{{.Name}}">
+          <td>{{.Name}}</td>
+          <td>{{.Namespace}}</td>
+          <td class="muted">{{.SecretName}}</td>
+          <td>{{if .Ready}}<span class="badge ok">ready</span>{{else}}<span class="badge bad">not ready</span>{{end}}</td>
+          <td>{{.ObservedBuckets}}</td>
+          <td class="muted">{{if .LastSuccess}}{{.LastSuccess}}{{else}}—{{end}}</td>
+          <td class="actions">
+            <button type="button" class="secondary" onclick="loadIntoForm('{{.Namespace}}','{{.Name}}')">Edit</button>
+            <button type="button" class="danger" onclick="del('{{.Namespace}}','{{.Name}}')">Delete</button>
+          </td>
+        </tr>
+        {{else}}
+        <tr><td colspan="7" class="muted">No S3Endpoints found.</td></tr>
+        {{end}}
+      </tbody>
+    </table>
+
+    <section class="panel">
+      <h2 id="form-title">Create S3Endpoint</h2>
+      <form id="crud" class="grid" onsubmit="return save(event)">
+        <label>Name <input id="f-name" required /></label>
+        <label>Namespace <input id="f-ns" required placeholder="default" /></label>
+        <label>Secret name <input id="f-secret" required placeholder="s3-creds" /></label>
+        <label>Endpoint override <input id="f-endpoint" placeholder="optional host:port" /></label>
+        <label>Region <input id="f-region" placeholder="us-east-1" /></label>
+        <label>Interval <input id="f-interval" placeholder="5m" /></label>
+        <label>Folder depth <input id="f-depth" type="number" min="1" max="10" placeholder="{{.DepthHint}}" /></label>
+        <label>Suspend
+          <select id="f-suspend">
+            <option value="false">false</option>
+            <option value="true">true</option>
+          </select>
+        </label>
+        <div style="grid-column: 1 / -1; display:flex; gap:0.5rem; align-items:center;">
+          <button type="submit" id="save-btn">Create</button>
+          <button type="button" class="secondary" onclick="resetForm()">Reset</button>
+          <input type="hidden" id="f-mode" value="create" />
+        </div>
+      </form>
+      <p id="msg"></p>
+    </section>
+  </main>
+  <script>
+    function msg(t) { document.getElementById('msg').textContent = t || ''; }
+    function resetForm() {
+      document.getElementById('form-title').textContent = 'Create S3Endpoint';
+      document.getElementById('save-btn').textContent = 'Create';
+      document.getElementById('f-mode').value = 'create';
+      document.getElementById('f-name').disabled = false;
+      document.getElementById('f-ns').disabled = false;
+      ['f-name','f-ns','f-secret','f-endpoint','f-region','f-interval','f-depth'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('f-suspend').value = 'false';
+      msg('');
+    }
+    async function loadIntoForm(ns, name) {
+      const r = await fetch('/api/v1/s3endpoints/' + encodeURIComponent(ns) + '/' + encodeURIComponent(name));
+      const j = await r.json();
+      if (!r.ok) { msg(j.error || 'load failed'); return; }
+      document.getElementById('form-title').textContent = 'Update ' + ns + '/' + name;
+      document.getElementById('save-btn').textContent = 'Update';
+      document.getElementById('f-mode').value = 'update';
+      document.getElementById('f-name').value = j.name;
+      document.getElementById('f-ns').value = j.namespace;
+      document.getElementById('f-name').disabled = true;
+      document.getElementById('f-ns').disabled = true;
+      document.getElementById('f-secret').value = j.secretName || '';
+      document.getElementById('f-endpoint').value = j.endpoint || '';
+      document.getElementById('f-region').value = j.region || '';
+      document.getElementById('f-interval').value = j.interval || '';
+      document.getElementById('f-depth').value = j.folderDepth != null ? j.folderDepth : '';
+      document.getElementById('f-suspend').value = j.suspend ? 'true' : 'false';
+      msg('');
+    }
+    function bodyFromForm() {
+      const depth = document.getElementById('f-depth').value;
+      const payload = {
+        name: document.getElementById('f-name').value.trim(),
+        namespace: document.getElementById('f-ns').value.trim(),
+        spec: {
+          credentialsSecretRef: { name: document.getElementById('f-secret').value.trim() },
+          endpoint: document.getElementById('f-endpoint').value.trim(),
+          region: document.getElementById('f-region').value.trim(),
+          interval: document.getElementById('f-interval').value.trim(),
+          suspend: document.getElementById('f-suspend').value === 'true'
+        }
+      };
+      if (depth !== '') payload.spec.folderDepth = Number(depth);
+      return payload;
+    }
+    async function save(ev) {
+      ev.preventDefault();
+      const mode = document.getElementById('f-mode').value;
+      const body = bodyFromForm();
+      let url = '/api/v1/s3endpoints';
+      let method = 'POST';
+      if (mode === 'update') {
+        url += '/' + encodeURIComponent(body.namespace) + '/' + encodeURIComponent(body.name);
+        method = 'PUT';
+      }
+      const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { msg(j.error || ('HTTP ' + r.status)); return; }
+      location.reload();
+      return false;
+    }
+    async function del(ns, name) {
+      if (!confirm('Delete S3Endpoint ' + ns + '/' + name + '?')) return;
+      const r = await fetch('/api/v1/s3endpoints/' + encodeURIComponent(ns) + '/' + encodeURIComponent(name), { method: 'DELETE' });
+      if (!r.ok && r.status !== 204) {
+        const j = await r.json().catch(() => ({}));
+        msg(j.error || ('HTTP ' + r.status));
+        return;
+      }
+      location.reload();
+    }
+  </script>
+</body>
+</html>

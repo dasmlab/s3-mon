@@ -111,6 +111,7 @@ spec:
   selector:
     app: s3-mon
   ports:
-    - name: metrics
+    - name: http
       port: 8090
       targetPort: 8090
+      # UI /, API /api/v1/*, metrics /metrics

@@ -31,18 +31,18 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	s3monv1alpha1 "github.com/dasmlab/s3-mon/api/v1alpha1"
 	"github.com/dasmlab/s3-mon/internal/controller"
+	"github.com/dasmlab/s3-mon/internal/httpserver"
 	s3metrics "github.com/dasmlab/s3-mon/internal/metrics"
 	"github.com/dasmlab/s3-mon/internal/poller"
 	// +kubebuilder:scaffold:imports
@@ -72,7 +72,7 @@ func main() {
 	var tlsOpts []func(*tls.Config)
 	var ginAddr string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the controller-runtime metrics endpoint binds to.")
-	flag.StringVar(&ginAddr, "http-bind-address", ":8090", "Gin HTTP server for /metrics and /healthz (Prometheus scrape target).")
+	flag.StringVar(&ginAddr, "http-bind-address", ":8090", "Gin HTTP server for UI, CRUD API, /metrics, and /healthz.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -223,8 +223,8 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	// Gin serves Prometheus metrics (and health) for Grafana/Prometheus scrapes.
-	go startGin(ginAddr, reg)
+	// Gin serves UI + CRUD API + Prometheus metrics for scrapes.
+	go startHTTP(ginAddr, mgr.GetClient(), reg)
 
 	if metricsCertWatcher != nil {
 		setupLog.Info("Adding metrics certificate watcher to manager")
@@ -258,15 +258,10 @@ func main() {
 	}
 }
 
-func startGin(addr string, reg *prometheus.Registry) {
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.New()
-	r.Use(gin.Recovery())
-	r.GET("/healthz", func(c *gin.Context) {
-		c.String(200, "ok")
-	})
-	r.GET("/metrics", gin.WrapH(promhttp.HandlerFor(reg, promhttp.HandlerOpts{})))
-	setupLog.Info("starting gin metrics server", "addr", addr)
+func startHTTP(addr string, c client.Client, reg *prometheus.Registry) {
+	srv := &httpserver.Server{Client: c, Reg: reg}
+	r := srv.NewRouter()
+	setupLog.Info("starting gin http server (ui+api+metrics)", "addr", addr)
 	if err := r.Run(addr); err != nil {
 		setupLog.Error(err, "gin server stopped")
 	}
