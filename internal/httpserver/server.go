@@ -33,19 +33,48 @@ type Server struct {
 	Reg    *prometheus.Registry
 }
 
-// NewRouter builds the Gin engine used by the operator HTTP listener.
+// NewRouter serves metrics, health, UI and API on one listener.
 func (s *Server) NewRouter() *gin.Engine {
+	r := newEngine()
+	s.addMetricsRoutes(r)
+	s.addUIRoutes(r)
+	return r
+}
+
+// MetricsRouter serves only /healthz and /metrics.
+func (s *Server) MetricsRouter() *gin.Engine {
+	r := newEngine()
+	s.addMetricsRoutes(r)
+	return r
+}
+
+// UIRouter serves only the HTML UI and the CRUD API (plus /healthz).
+func (s *Server) UIRouter() *gin.Engine {
+	r := newEngine()
+	r.GET("/healthz", healthz)
+	s.addUIRoutes(r)
+	return r
+}
+
+func newEngine() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.Recovery())
+	return r
+}
 
-	r.GET("/healthz", func(c *gin.Context) {
-		c.String(http.StatusOK, "ok")
-	})
+func healthz(c *gin.Context) {
+	c.String(http.StatusOK, "ok")
+}
+
+func (s *Server) addMetricsRoutes(r *gin.Engine) {
+	r.GET("/healthz", healthz)
 	if s.Reg != nil {
 		r.GET("/metrics", gin.WrapH(promhttp.HandlerFor(s.Reg, promhttp.HandlerOpts{})))
 	}
+}
 
+func (s *Server) addUIRoutes(r *gin.Engine) {
 	api := r.Group("/api/v1")
 	{
 		api.GET("/s3endpoints", s.listEndpoints)
@@ -59,8 +88,6 @@ func (s *Server) NewRouter() *gin.Engine {
 	r.SetHTMLTemplate(tmpl)
 	r.GET("/", s.uiIndex)
 	r.GET("/ui", func(c *gin.Context) { c.Redirect(http.StatusFound, "/") })
-
-	return r
 }
 
 func mustSub(f embed.FS, dir string) fs.FS {

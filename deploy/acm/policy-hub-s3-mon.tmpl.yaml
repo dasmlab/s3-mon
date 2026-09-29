@@ -1,0 +1,388 @@
+# Hub s3-mon via ACM ConfigurationPolicy (local-cluster only).
+# Includes: CRD, Namespace, ServiceAccount, RBAC, Deployment (+ oauth-proxy), Service, Route,
+#           ServiceMonitor (UWM), the MCO user-workload metrics allowlist, and the MCO Grafana dashboard.
+#
+# UI access: Route -> oauth-proxy (OpenShift login) -> UI/API on 127.0.0.1:8091.
+# Only users allowed to create S3Endpoints in all namespaces get through, because the UI
+# acts with the operator's cluster-wide permissions.
+#
+# Rendered by hack/render-acm-policy.sh from deploy/acm/policy-hub-s3-mon.tmpl.yaml.
+# Edit the template, not the rendered file.
+#
+# Secrets / S3 credentials and S3Endpoint CRs: keep OUT of this Policy (oneshot / ESO), same as Thanos.
+#
+# Prereqs on the hub:
+#   - User Workload Monitoring enabled (cluster-monitoring-config: enableUserWorkload: true)
+#   - MCO observability addon running on local-cluster
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: hub-s3-mon
+  namespace: open-cluster-management
+  annotations:
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/description: "Deploys the s3-mon operator on the ACM Hub — CRD, NS, RBAC, Deployment, Service, ServiceMonitor, MCO allowlist."
+spec:
+  remediationAction: enforce
+  copyPolicyMetadata: false
+  disabled: false
+  policy-templates:
+    # A) CRD — kept on policy removal so S3Endpoint CRs are not garbage-collected with it.
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: hub-s3-mon-crd
+        spec:
+          remediationAction: enforce
+          severity: medium
+          pruneObjectBehavior: None
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+__CRD__
+
+    # B) Operator workload — waits for the CRD so the manager does not crash-loop on "no matches for kind".
+    - extraDependencies:
+        - apiVersion: policy.open-cluster-management.io/v1
+          kind: ConfigurationPolicy
+          name: hub-s3-mon-crd
+          compliance: Compliant
+      objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: hub-s3-mon-config
+        spec:
+          remediationAction: enforce
+          severity: medium
+          pruneObjectBehavior: DeleteIfCreated
+          object-templates:
+            # 1) Namespace
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: s3-mon
+                  labels:
+                    app: s3-mon
+
+            # 2) ServiceAccount
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ServiceAccount
+                metadata:
+                  name: s3-mon-controller
+                  namespace: s3-mon
+                  labels:
+                    app: s3-mon
+                  annotations:
+                    serviceaccounts.openshift.io/oauth-redirectreference.primary: '{"kind":"OAuthRedirectReference","apiVersion":"v1","reference":{"kind":"Route","name":"s3-mon"}}'
+
+            # 3) ClusterRole — S3Endpoints in any namespace + the Secrets they reference
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRole
+                metadata:
+                  name: s3-mon-manager-role
+                  labels:
+                    app: s3-mon
+                rules:
+                  - apiGroups: ["s3mon.dasmlab.org"]
+                    resources: ["s3endpoints"]
+                    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+                  - apiGroups: ["s3mon.dasmlab.org"]
+                    resources: ["s3endpoints/status"]
+                    verbs: ["get", "update", "patch"]
+                  - apiGroups: ["s3mon.dasmlab.org"]
+                    resources: ["s3endpoints/finalizers"]
+                    verbs: ["update"]
+                  - apiGroups: [""]
+                    resources: ["secrets"]
+                    verbs: ["get", "list", "watch"]
+                  - apiGroups: [""]
+                    resources: ["events"]
+                    verbs: ["create", "patch"]
+
+            # 4) ClusterRoleBinding
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: s3-mon-manager-rolebinding
+                  labels:
+                    app: s3-mon
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: ClusterRole
+                  name: s3-mon-manager-role
+                subjects:
+                  - kind: ServiceAccount
+                    name: s3-mon-controller
+                    namespace: s3-mon
+
+            # 4b) oauth-proxy needs TokenReviews/SubjectAccessReviews for the SAR gate
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: rbac.authorization.k8s.io/v1
+                kind: ClusterRoleBinding
+                metadata:
+                  name: s3-mon-auth-delegator
+                  labels:
+                    app: s3-mon
+                roleRef:
+                  apiGroup: rbac.authorization.k8s.io
+                  kind: ClusterRole
+                  name: system:auth-delegator
+                subjects:
+                  - kind: ServiceAccount
+                    name: s3-mon-controller
+                    namespace: s3-mon
+
+            # 5) Deployment
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: apps/v1
+                kind: Deployment
+                metadata:
+                  name: s3-mon-controller
+                  namespace: s3-mon
+                  labels:
+                    app: s3-mon
+                spec:
+                  replicas: 1
+                  selector:
+                    matchLabels:
+                      app: s3-mon
+                  template:
+                    metadata:
+                      labels:
+                        app: s3-mon
+                    spec:
+                      serviceAccountName: s3-mon-controller
+                      securityContext:
+                        runAsNonRoot: true
+                        seccompProfile:
+                          type: RuntimeDefault
+                      containers:
+                        - name: manager
+                          image: __IMAGE__
+                          imagePullPolicy: IfNotPresent
+                          args:
+                            - --metrics-bind-address=0
+                            - --http-bind-address=:8090
+                            - --ui-bind-address=127.0.0.1:8091
+                            - --health-probe-bind-address=:8081
+                            - --leader-elect=false
+                          ports:
+                            - name: http
+                              containerPort: 8090
+                              protocol: TCP
+                            - name: health
+                              containerPort: 8081
+                              protocol: TCP
+                          readinessProbe:
+                            httpGet:
+                              path: /readyz
+                              port: health
+                            initialDelaySeconds: 5
+                            periodSeconds: 10
+                          livenessProbe:
+                            httpGet:
+                              path: /healthz
+                              port: health
+                            initialDelaySeconds: 15
+                            periodSeconds: 20
+                          securityContext:
+                            readOnlyRootFilesystem: true
+                            allowPrivilegeEscalation: false
+                            capabilities:
+                              drop: ["ALL"]
+                          resources:
+                            requests:
+                              cpu: 50m
+                              memory: 64Mi
+                            limits:
+                              cpu: 500m
+                              memory: 256Mi
+                        # oauth-proxy image comes from the cluster's own release payload, so it always
+                        # matches the OCP version and pulls with the global pull secret.
+                        - name: oauth-proxy
+                          image: '{{ (lookup "image.openshift.io/v1" "ImageStreamTag" "openshift" "oauth-proxy:v4.4").image.dockerImageReference }}'
+                          imagePullPolicy: IfNotPresent
+                          args:
+                            - --provider=openshift
+                            - --https-address=:8443
+                            - --http-address=
+                            - --upstream=http://127.0.0.1:8091
+                            - --openshift-service-account=s3-mon-controller
+                            - --tls-cert=/etc/tls/private/tls.crt
+                            - --tls-key=/etc/tls/private/tls.key
+                            # HMAC key for session cookies; the service-ca private key is per-cluster and
+                            # only readable by those who can read secrets in s3-mon.
+                            - --cookie-secret-file=/etc/tls/private/tls.key
+                            - --cookie-secure=true
+                            - '--openshift-sar={"group":"s3mon.dasmlab.org","resource":"s3endpoints","verb":"create"}'
+                          ports:
+                            - name: https
+                              containerPort: 8443
+                              protocol: TCP
+                          readinessProbe:
+                            httpGet:
+                              path: /oauth/healthz
+                              port: https
+                              scheme: HTTPS
+                            initialDelaySeconds: 5
+                            periodSeconds: 10
+                          livenessProbe:
+                            httpGet:
+                              path: /oauth/healthz
+                              port: https
+                              scheme: HTTPS
+                            initialDelaySeconds: 15
+                            periodSeconds: 20
+                          securityContext:
+                            allowPrivilegeEscalation: false
+                            capabilities:
+                              drop: ["ALL"]
+                          volumeMounts:
+                            - name: proxy-tls
+                              mountPath: /etc/tls/private
+                              readOnly: true
+                          resources:
+                            requests:
+                              cpu: 10m
+                              memory: 32Mi
+                            limits:
+                              memory: 128Mi
+                      volumes:
+                        - name: proxy-tls
+                          secret:
+                            secretName: s3-mon-tls
+
+            # 6) Service — metrics on http (in-cluster only), UI/API via oauth-proxy on https.
+            #    service-ca issues the s3-mon-tls serving cert used by the proxy and trusted by the router.
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Service
+                metadata:
+                  name: s3-mon
+                  namespace: s3-mon
+                  labels:
+                    app: s3-mon
+                  annotations:
+                    service.beta.openshift.io/serving-cert-secret-name: s3-mon-tls
+                spec:
+                  selector:
+                    app: s3-mon
+                  ports:
+                    - name: http
+                      port: 8090
+                      targetPort: http
+                      protocol: TCP
+                    - name: https
+                      port: 8443
+                      targetPort: https
+                      protocol: TCP
+
+            # 6b) Route — OpenShift login in front of the UI/API
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: route.openshift.io/v1
+                kind: Route
+                metadata:
+                  name: s3-mon
+                  namespace: s3-mon
+                  labels:
+                    app: s3-mon
+                spec:
+                  to:
+                    kind: Service
+                    name: s3-mon
+                    weight: 100
+                  port:
+                    targetPort: https
+                  tls:
+                    termination: reencrypt
+                    insecureEdgeTerminationPolicy: Redirect
+                  wildcardPolicy: None
+
+            # 7) ServiceMonitor (User Workload Monitoring)
+            #    honorLabels keeps the metric's own `endpoint` label (the S3Endpoint name);
+            #    without it Prometheus overwrites it with the scrape port name.
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: monitoring.coreos.com/v1
+                kind: ServiceMonitor
+                metadata:
+                  name: s3-mon
+                  namespace: s3-mon
+                  labels:
+                    app: s3-mon
+                spec:
+                  selector:
+                    matchLabels:
+                      app: s3-mon
+                  endpoints:
+                    - port: http
+                      path: /metrics
+                      interval: 60s
+                      honorLabels: true
+
+            # 8) MCO allowlist — metrics-collector only forwards allowlisted UWM series to the hub Thanos.
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: observability-metrics-custom-allowlist
+                  namespace: s3-mon
+                  labels:
+                    app: s3-mon
+                data:
+                  uwl_metrics_list.yaml: |
+                    names:
+                      - s3mon_bucket_size_bytes
+                      - s3mon_bucket_objects
+                      - s3mon_folder_count
+                      - s3mon_prefix_size_bytes
+                      - s3mon_prefix_objects
+                      - s3mon_scrape_success
+                      - s3mon_scrape_duration_seconds
+                      - s3mon_last_scrape_timestamp
+
+    # C) MCO Grafana dashboard — picked up by the grafana-dashboard-loader via the label.
+    #    Templates are disabled here: the dashboard's Grafana legends use {{...}}, which the
+    #    policy template engine would otherwise try to resolve.
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: hub-s3-mon-dashboard
+          annotations:
+            policy.open-cluster-management.io/disable-templates: "true"
+        spec:
+          remediationAction: enforce
+          severity: low
+          pruneObjectBehavior: DeleteIfCreated
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: s3-mon-dashboard
+                  namespace: open-cluster-management-observability
+                  labels:
+                    grafana-custom-dashboard: "true"
+                  annotations:
+                    observability.open-cluster-management.io/dashboard-folder: S3
+                data:
+                  s3-mon-dashboard.json: |-
+__DASHBOARD__

@@ -37,7 +37,12 @@ stringData:
 
 Also accepted: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, and a Thanos objstore YAML blob under key `config`.
 
-## UI + CRUD API (Gin `:8090`)
+## UI + CRUD API
+
+Served on `--http-bind-address` (`:8090`) by default. With `--ui-bind-address=127.0.0.1:8091`
+the UI/API move to their own loopback listener (for an auth proxy) and `:8090` serves only
+`/metrics` and `/healthz`. The UI has no auth of its own and acts with the operator's
+cluster-wide permissions, so never expose it without a proxy.
 
 - HTML UI: `GET /` — table of S3Endpoints with create/edit/delete
 - JSON API:
@@ -61,6 +66,75 @@ Handler tests live in `internal/httpserver`.
 | `s3mon_scrape_success` | endpoint_namespace, endpoint |
 | `s3mon_scrape_duration_seconds` | endpoint_namespace, endpoint |
 | `s3mon_last_scrape_timestamp` | endpoint_namespace, endpoint |
+
+## Deploying on the ACM hub (ConfigurationPolicy)
+
+| File | What |
+|------|------|
+| `deploy/acm/policy-hub-s3-mon.yaml` | `Policy hub-s3-mon` (generated — edit the `.tmpl.yaml`) |
+| `deploy/acm/placement-hub-s3-mon.yaml` | `Placement` + `PlacementBinding` → `local-cluster` |
+
+The policy has three ConfigurationPolicies:
+
+1. `hub-s3-mon-crd` — the CRD (`pruneObjectBehavior: None`, so removing the policy never deletes your S3Endpoints).
+2. `hub-s3-mon-config` — waits for (1), then Namespace `s3-mon`, SA, RBAC, Deployment
+   (manager + `oauth-proxy`), Service, reencrypt Route, ServiceMonitor, and the MCO
+   `observability-metrics-custom-allowlist`.
+3. `hub-s3-mon-dashboard` — the Grafana dashboard ConfigMap in `open-cluster-management-observability`.
+
+Hub prerequisites:
+
+```bash
+# User Workload Monitoring must be on (the ServiceMonitor lives in s3-mon)
+oc -n openshift-monitoring get cm cluster-monitoring-config -o yaml | grep enableUserWorkload
+# MCO addon must be running on local-cluster
+oc -n open-cluster-management-addon-observability get pods
+```
+
+Apply (or add both files to the hub GitOps folder):
+
+```bash
+oc apply -f deploy/acm/policy-hub-s3-mon.yaml -f deploy/acm/placement-hub-s3-mon.yaml
+oc -n open-cluster-management get policy hub-s3-mon
+oc -n s3-mon get pods,route
+```
+
+UI: open the `s3-mon` Route and log in with OpenShift. Access requires permission to create
+S3Endpoints in all namespaces (`--openshift-sar`).
+
+S3 credentials Secrets and `S3Endpoint` CRs stay out of the policy (oneshot / ESO), same as Thanos.
+`./commitme.sh` re-renders the policy so it always pins the image to the tag being cut.
+
+## Grafana (Red Hat ACM Observability / MCO)
+
+Metrics path: operator `/metrics` → UWM Prometheus (ServiceMonitor, `honorLabels: true`) →
+MCO metrics-collector (only allowlisted `s3mon_*` names) → hub Thanos → MCO Grafana (`Observatorium`
+datasource, adds the `cluster` label).
+
+The dashboard (`deploy/grafana/s3-mon-dashboard.json`, uid `s3-mon-overview`) is delivered by
+ConfigurationPolicy (3) above. The MCO `grafana-dashboard-loader` sidecar imports any ConfigMap in
+`open-cluster-management-observability` labelled `grafana-custom-dashboard: "true"`; it lands in the
+**S3** folder (annotation `observability.open-cluster-management.io/dashboard-folder`).
+
+Without the policy:
+
+```bash
+oc apply -f deploy/grafana/s3-mon-dashboard-configmap.yaml
+```
+
+Check it:
+
+```bash
+oc -n open-cluster-management-observability get cm s3-mon-dashboard --show-labels
+oc -n open-cluster-management-observability logs deploy/observability-grafana -c grafana-dashboard-loader --tail=20
+```
+
+Then ACM console → Infrastructure → Clusters → Grafana link (or the `grafana` Route in
+`open-cluster-management-observability`) → Dashboards → S3 → **S3 Monitor - Buckets & Folders**.
+
+MCO Grafana is read-only for provisioned dashboards. To change the dashboard, edit the JSON (or edit a copy
+in a Grafana dev instance and export it), then run `./hack/render-grafana-configmap.sh` and
+`./hack/render-acm-policy.sh`. Expect data up to one collector interval (default 5m) behind the operator.
 
 ## Build / CRDs in CI
 

@@ -170,3 +170,33 @@ func TestCreateValidation(t *testing.T) {
 		t.Fatalf("want 400, got %d %s", w.Code, w.Body.String())
 	}
 }
+
+func status(h http.Handler, path string) int {
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+	return w.Code
+}
+
+func TestSplitRouters(t *testing.T) {
+	s := &httpserver.Server{Client: seed(t), Reg: prometheus.NewRegistry()}
+
+	m := s.MetricsRouter()
+	for path, want := range map[string]int{
+		"/healthz": http.StatusOK, "/metrics": http.StatusOK,
+		"/": http.StatusNotFound, "/api/v1/s3endpoints": http.StatusNotFound,
+	} {
+		if got := status(m, path); got != want {
+			t.Errorf("metrics router %s: want %d, got %d", path, want, got)
+		}
+	}
+
+	u := s.UIRouter()
+	for path, want := range map[string]int{
+		"/healthz": http.StatusOK, "/": http.StatusOK, "/api/v1/s3endpoints": http.StatusOK,
+		"/metrics": http.StatusNotFound,
+	} {
+		if got := status(u, path); got != want {
+			t.Errorf("ui router %s: want %d, got %d", path, want, got)
+		}
+	}
+}

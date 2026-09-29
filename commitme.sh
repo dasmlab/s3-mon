@@ -52,6 +52,10 @@ if command -v make >/dev/null 2>&1; then
   make manifests generate 2>/dev/null || true
 fi
 
+# ACM policy pins the image to the tag being cut; dashboard ConfigMap follows the JSON.
+VERSION="${NEW_TAG}" ./hack/render-acm-policy.sh
+./hack/render-grafana-configmap.sh
+
 git add -A .
 if git diff --cached --quiet; then
   echo "No staged changes. Aborting."

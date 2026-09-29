@@ -1,0 +1,27 @@
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: placement-hub-s3-mon
+  namespace: open-cluster-management
+spec:
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchExpressions:
+            - key: local-cluster
+              operator: In
+              values: ["true"]
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: binding-hub-s3-mon
+  namespace: open-cluster-management
+placementRef:
+  name: placement-hub-s3-mon
+  kind: Placement
+  apiGroup: cluster.open-cluster-management.io
+subjects:
+  - name: hub-s3-mon
+    kind: Policy
+    apiGroup: policy.open-cluster-management.io

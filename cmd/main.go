@@ -38,6 +38,7 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
+	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 
 	s3monv1alpha1 "github.com/dasmlab/s3-mon/api/v1alpha1"
@@ -70,10 +71,13 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
-	var ginAddr string
+	var ginAddr, uiAddr string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080",
 		"The address the controller-runtime metrics endpoint binds to.")
-	flag.StringVar(&ginAddr, "http-bind-address", ":8090", "Gin HTTP server for UI, CRUD API, /metrics, and /healthz.")
+	flag.StringVar(&ginAddr, "http-bind-address", ":8090", "Gin HTTP server for /metrics and /healthz (and UI/API "+
+		"unless --ui-bind-address is set).")
+	flag.StringVar(&uiAddr, "ui-bind-address", "", "Separate listener for the UI and CRUD API, "+
+		"e.g. 127.0.0.1:8091 behind an auth proxy. Empty serves them on --http-bind-address.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
@@ -224,8 +228,7 @@ func main() {
 	}
 	// +kubebuilder:scaffold:builder
 
-	// Gin serves UI + CRUD API + Prometheus metrics for scrapes.
-	go startHTTP(ginAddr, mgr.GetClient(), reg)
+	startHTTP(ginAddr, uiAddr, mgr.GetClient(), reg)
 
 	if metricsCertWatcher != nil {
 		setupLog.Info("Adding metrics certificate watcher to manager")
@@ -259,11 +262,19 @@ func main() {
 	}
 }
 
-func startHTTP(addr string, c client.Client, reg *prometheus.Registry) {
+func startHTTP(addr, uiAddr string, c client.Client, reg *prometheus.Registry) {
 	srv := &httpserver.Server{Client: c, Reg: reg}
-	r := srv.NewRouter()
-	setupLog.Info("starting gin http server (ui+api+metrics)", "addr", addr)
+	if uiAddr == "" {
+		go serveGin("ui+api+metrics", addr, srv.NewRouter())
+		return
+	}
+	go serveGin("metrics", addr, srv.MetricsRouter())
+	go serveGin("ui+api", uiAddr, srv.UIRouter())
+}
+
+func serveGin(name, addr string, r *gin.Engine) {
+	setupLog.Info("starting gin http server", "server", name, "addr", addr)
 	if err := r.Run(addr); err != nil {
-		setupLog.Error(err, "gin server stopped")
+		setupLog.Error(err, "gin server stopped", "server", name)
 	}
 }
