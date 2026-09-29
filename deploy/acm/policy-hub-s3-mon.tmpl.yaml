@@ -126,24 +126,6 @@ __CRD__
                     name: s3-mon-controller
                     namespace: s3-mon
 
-            # 4b) oauth-proxy needs TokenReviews/SubjectAccessReviews for the SAR gate
-            - complianceType: musthave
-              objectDefinition:
-                apiVersion: rbac.authorization.k8s.io/v1
-                kind: ClusterRoleBinding
-                metadata:
-                  name: s3-mon-auth-delegator
-                  labels:
-                    app: s3-mon
-                roleRef:
-                  apiGroup: rbac.authorization.k8s.io
-                  kind: ClusterRole
-                  name: system:auth-delegator
-                subjects:
-                  - kind: ServiceAccount
-                    name: s3-mon-controller
-                    namespace: s3-mon
-
             # 5) Deployment
             - complianceType: musthave
               objectDefinition:
