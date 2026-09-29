@@ -2,6 +2,14 @@
 
 Kubernetes operator that scrapes S3-compatible endpoints and exports Prometheus metrics for Grafana.
 
+![s3-mon overview](diagrams/s3-mon-overview.svg)
+
+Each `S3Endpoint` gets its own poller: it lists buckets, walks "folders" (common prefixes) to a
+configurable depth, and exports bucket size, object counts, folder counts and scrape health on
+`/metrics`. On an ACM hub the ServiceMonitor feeds User Workload Monitoring, the MCO metrics-collector
+forwards the allowlisted `s3mon_*` series to hub Thanos, and the bundled dashboard shows them in the
+ACM Observability Grafana.
+
 ## CRD: `S3Endpoint`
 
 ```yaml
@@ -94,6 +102,8 @@ Handler tests live in `internal/httpserver`.
 
 ## Deploying on the ACM hub (ConfigurationPolicy)
 
+![s3-mon deploy](diagrams/s3-mon-deploy.svg)
+
 | File | What |
 |------|------|
 | `deploy/acm/policy-hub-s3-mon.yaml` | `Policy hub-s3-mon` (generated — edit the `.tmpl.yaml`) |
@@ -178,6 +188,11 @@ make docker-build IMG=s3-mon:dev
 ```bash
 ./commitme.sh point "short why message"
 ```
+
+## Diagrams
+
+Sources are D2 under `diagrams/*.d2`; CI (`.github/workflows/d2-diagrams.yml`) renders sibling SVGs on
+push to `main`. Locally: `d2 diagrams/s3-mon-overview.d2 diagrams/s3-mon-overview.svg`
 
 ## Layout
 

@@ -1,0 +1,29 @@
+direction: right
+
+git: {
+  label: "Git / Argo CD"
+  style.fill: "#EEF1F8"
+}
+policy: {
+  label: "ACM Policy\nhub-s3-mon"
+  style.fill: "#1f6f62"
+  style.font-color: "#FFFFFF"
+  style.bold: true
+}
+crd: {
+  label: "S3Endpoint CRD"
+  style.fill: "#E8F2F0"
+}
+app: {
+  label: "s3-mon namespace\nDeployment · Service · Route\nServiceMonitor · allowlist"
+  style.fill: "#E8F2F0"
+}
+dash: {
+  label: "Grafana dashboard\nConfigMap"
+  style.fill: "#E8F2F0"
+}
+
+git -> policy: "Placement\nlocal-cluster"
+policy -> crd: "1 · crd"
+policy -> app: "2 · config"
+policy -> dash: "3 · dashboard"

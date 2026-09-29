@@ -1,0 +1,29 @@
+direction: right
+
+cr: {
+  label: "S3Endpoint CR\n+ credentials Secret"
+  style.fill: "#EEF1F8"
+}
+op: {
+  label: "s3-mon operator"
+  style.fill: "#1f6f62"
+  style.font-color: "#FFFFFF"
+  style.bold: true
+}
+s3: {
+  label: "S3 endpoint\n(NAS · MinIO · ODF · AWS)"
+  style.fill: "#EEF1F8"
+}
+prom: {
+  label: "Prometheus\n(cluster · UWM)"
+  style.fill: "#E8F2F0"
+}
+grafana: {
+  label: "Grafana\n(ACM Observability)"
+  style.fill: "#EEF1F8"
+}
+
+cr -> op: "watch"
+op -> s3: "ListBuckets\nListObjectsV2"
+op -> prom: "/metrics\nServiceMonitor"
+prom -> grafana: "MCO collector\n→ hub Thanos"
