@@ -19,8 +19,7 @@ RUN go mod download
 COPY cmd/ cmd/
 COPY api/ api/
 COPY internal/ internal/
-COPY hack/ hack/
-COPY Makefile Makefile
+COPY hack/boilerplate.go.txt hack/boilerplate.go.txt
 
 # Generate CRDs + DeepCopy into the build context.
 RUN controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..." \
@@ -29,7 +28,7 @@ RUN controller-gen object:headerFile="hack/boilerplate.go.txt" paths="./..." \
  && mkdir -p /out/crds && cp -a config/crd/bases/. /out/crds/
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
-    go build -ldflags "-X main.version=${VERSION}" -a -o manager cmd/main.go
+    go build -ldflags "-X main.version=${VERSION}" -o manager cmd/main.go
 
 # --- runtime ---
 FROM gcr.io/distroless/static:nonroot

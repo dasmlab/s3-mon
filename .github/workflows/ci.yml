@@ -50,7 +50,14 @@ jobs:
           fi
           echo "version=${VER}" >> "$GITHUB_OUTPUT"
           echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
-          echo "tag_sha=${VER}-${SHA}" >> "$GITHUB_OUTPUT"
+          # Only tag pushes publish the SemVer and latest tags; branch builds must not move them.
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAGS="${IMAGE}:${VER},${IMAGE}:${VER}-${SHA},${IMAGE}:latest"
+          else
+            BRANCH="${GITHUB_REF_NAME//\//-}"
+            TAGS="${IMAGE}:${BRANCH},${IMAGE}:${BRANCH}-${SHA}"
+          fi
+          echo "tags=${TAGS}" >> "$GITHUB_OUTPUT"
 
       - name: Upload CRDs
         uses: actions/upload-artifact@v4
@@ -74,9 +81,8 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
           build-args: |
             VERSION=${{ steps.ver.outputs.version }}
-          tags: |
-            ${{ env.IMAGE }}:${{ steps.ver.outputs.tag_sha }}
-            ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
-            ${{ env.IMAGE }}:latest
+          tags: ${{ steps.ver.outputs.tags }}
