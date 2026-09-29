@@ -91,14 +91,14 @@ Handler tests live in `internal/httpserver`.
 
 | Metric | Labels |
 |--------|--------|
-| `s3mon_bucket_size_bytes` | endpoint_namespace, endpoint, bucket |
-| `s3mon_bucket_objects` | endpoint_namespace, endpoint, bucket |
-| `s3mon_folder_count` | endpoint_namespace, endpoint, bucket, depth |
-| `s3mon_prefix_size_bytes` | endpoint_namespace, endpoint, bucket, prefix, depth |
-| `s3mon_prefix_objects` | endpoint_namespace, endpoint, bucket, prefix, depth |
-| `s3mon_scrape_success` | endpoint_namespace, endpoint |
-| `s3mon_scrape_duration_seconds` | endpoint_namespace, endpoint |
-| `s3mon_last_scrape_timestamp` | endpoint_namespace, endpoint |
+| `s3mon_bucket_size_bytes` | endpoint_namespace, s3endpoint, bucket |
+| `s3mon_bucket_objects` | endpoint_namespace, s3endpoint, bucket |
+| `s3mon_folder_count` | endpoint_namespace, s3endpoint, bucket, depth |
+| `s3mon_prefix_size_bytes` | endpoint_namespace, s3endpoint, bucket, prefix, depth |
+| `s3mon_prefix_objects` | endpoint_namespace, s3endpoint, bucket, prefix, depth |
+| `s3mon_scrape_success` | endpoint_namespace, s3endpoint |
+| `s3mon_scrape_duration_seconds` | endpoint_namespace, s3endpoint |
+| `s3mon_last_scrape_timestamp` | endpoint_namespace, s3endpoint |
 
 ## Deploying on the ACM hub (ConfigurationPolicy)
 

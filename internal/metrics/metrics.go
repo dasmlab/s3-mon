@@ -12,7 +12,7 @@ const (
 	ns = "s3mon"
 
 	labelEndpointNS = "endpoint_namespace"
-	labelEndpoint   = "endpoint"
+	labelEndpoint   = "s3endpoint"
 	labelBucket     = "bucket"
 	labelPrefix     = "prefix"
 	labelDepth      = "depth"

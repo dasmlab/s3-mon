@@ -117,9 +117,9 @@ data:
               "type": "prometheus",
               "uid": "${datasource}"
             },
-            "definition": "label_values(s3mon_scrape_success{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\"}, endpoint)",
+            "definition": "label_values(s3mon_scrape_success{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\"}, s3endpoint)",
             "query": {
-              "query": "label_values(s3mon_scrape_success{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\"}, endpoint)",
+              "query": "label_values(s3mon_scrape_success{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\"}, s3endpoint)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 2,
@@ -146,9 +146,9 @@ data:
               "type": "prometheus",
               "uid": "${datasource}"
             },
-            "definition": "label_values(s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"}, bucket)",
+            "definition": "label_values(s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"}, bucket)",
             "query": {
-              "query": "label_values(s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"}, bucket)",
+              "query": "label_values(s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"}, bucket)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 2,
@@ -175,9 +175,9 @@ data:
               "type": "prometheus",
               "uid": "${datasource}"
             },
-            "definition": "label_values(s3mon_prefix_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"}, depth)",
+            "definition": "label_values(s3mon_prefix_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"}, depth)",
             "query": {
-              "query": "label_values(s3mon_prefix_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"}, depth)",
+              "query": "label_values(s3mon_prefix_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"}, depth)",
               "refId": "PrometheusVariableQueryEditor-VariableQuery"
             },
             "refresh": 2,
@@ -233,7 +233,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "count(max by (cluster, endpoint_namespace, endpoint) (s3mon_scrape_success{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"} and on (cluster, endpoint_namespace, endpoint, pod) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"} == on (cluster, endpoint_namespace, endpoint) group_left max by (cluster, endpoint_namespace, endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"}))) == 1) or vector(0)",
+              "expr": "count(max by (cluster, endpoint_namespace, s3endpoint) (s3mon_scrape_success{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"} and on (cluster, endpoint_namespace, s3endpoint, pod) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"} == on (cluster, endpoint_namespace, s3endpoint) group_left max by (cluster, endpoint_namespace, s3endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"}))) == 1) or vector(0)",
               "refId": "A",
               "legendFormat": "",
               "instant": true,
@@ -294,7 +294,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "count(max by (cluster, endpoint_namespace, endpoint) (s3mon_scrape_success{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"} and on (cluster, endpoint_namespace, endpoint, pod) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"} == on (cluster, endpoint_namespace, endpoint) group_left max by (cluster, endpoint_namespace, endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"}))) == 0) or vector(0)",
+              "expr": "count(max by (cluster, endpoint_namespace, s3endpoint) (s3mon_scrape_success{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"} and on (cluster, endpoint_namespace, s3endpoint, pod) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"} == on (cluster, endpoint_namespace, s3endpoint) group_left max by (cluster, endpoint_namespace, s3endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"}))) == 0) or vector(0)",
               "refId": "A",
               "legendFormat": "",
               "instant": true,
@@ -359,7 +359,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "count(max by (cluster, endpoint_namespace, endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))",
+              "expr": "count(max by (cluster, endpoint_namespace, s3endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))",
               "refId": "A",
               "legendFormat": "",
               "instant": true,
@@ -420,7 +420,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "sum(max by (cluster, endpoint_namespace, endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))",
+              "expr": "sum(max by (cluster, endpoint_namespace, s3endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))",
               "refId": "A",
               "legendFormat": "",
               "instant": true,
@@ -481,7 +481,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "sum(max by (cluster, endpoint_namespace, endpoint, bucket) (s3mon_bucket_objects{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))",
+              "expr": "sum(max by (cluster, endpoint_namespace, s3endpoint, bucket) (s3mon_bucket_objects{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))",
               "refId": "A",
               "legendFormat": "",
               "instant": true,
@@ -542,7 +542,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "time() - min(max by (cluster, endpoint_namespace, endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"}))",
+              "expr": "time() - min(max by (cluster, endpoint_namespace, s3endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"}))",
               "refId": "A",
               "legendFormat": "",
               "instant": true,
@@ -624,7 +624,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "max by (cluster, endpoint_namespace, endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\"})",
+              "expr": "max by (cluster, endpoint_namespace, s3endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\"})",
               "refId": "A",
               "legendFormat": "",
               "instant": true,
@@ -636,7 +636,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "max by (cluster, endpoint_namespace, endpoint, bucket) (s3mon_bucket_objects{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\"})",
+              "expr": "max by (cluster, endpoint_namespace, s3endpoint, bucket) (s3mon_bucket_objects{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\"})",
               "refId": "B",
               "legendFormat": "",
               "instant": true,
@@ -664,15 +664,17 @@ data:
                   "clusterID": true,
                   "receive": true,
                   "tenant_id": true,
-                  "prometheus": true
+                  "prometheus": true,
+                  "endpoint": true,
+                  "exported_endpoint": true
                 },
                 "renameByName": {
                   "cluster": "Cluster",
                   "endpoint_namespace": "Namespace",
-                  "endpoint": "S3Endpoint",
                   "bucket": "Bucket",
                   "Value #A": "Size",
-                  "Value #B": "Objects"
+                  "Value #B": "Objects",
+                  "s3endpoint": "S3Endpoint"
                 }
               }
             },
@@ -749,9 +751,9 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "topk(10, max by (cluster, endpoint_namespace, endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))",
+              "expr": "topk(10, max by (cluster, endpoint_namespace, s3endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))",
               "refId": "A",
-              "legendFormat": "{{cluster}} {{endpoint}}/{{bucket}}",
+              "legendFormat": "{{cluster}} {{s3endpoint}}/{{bucket}}",
               "instant": true,
               "range": false,
               "format": "time_series"
@@ -809,9 +811,9 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "max by (cluster, endpoint_namespace, endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\"})",
+              "expr": "max by (cluster, endpoint_namespace, s3endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\"})",
               "refId": "A",
-              "legendFormat": "{{cluster}} {{endpoint}}/{{bucket}}",
+              "legendFormat": "{{cluster}} {{s3endpoint}}/{{bucket}}",
               "range": true,
               "instant": false,
               "format": "time_series"
@@ -870,9 +872,9 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "deriv((max by (cluster, endpoint_namespace, endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))[6h:5m]) * 86400",
+              "expr": "deriv((max by (cluster, endpoint_namespace, s3endpoint, bucket) (s3mon_bucket_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))[6h:5m]) * 86400",
               "refId": "A",
-              "legendFormat": "{{cluster}} {{endpoint}}/{{bucket}}",
+              "legendFormat": "{{cluster}} {{s3endpoint}}/{{bucket}}",
               "range": true,
               "instant": false,
               "format": "time_series"
@@ -931,9 +933,9 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "max by (cluster, endpoint_namespace, endpoint, bucket) (s3mon_bucket_objects{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\"})",
+              "expr": "max by (cluster, endpoint_namespace, s3endpoint, bucket) (s3mon_bucket_objects{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\"})",
               "refId": "A",
-              "legendFormat": "{{cluster}} {{endpoint}}/{{bucket}}",
+              "legendFormat": "{{cluster}} {{s3endpoint}}/{{bucket}}",
               "range": true,
               "instant": false,
               "format": "time_series"
@@ -1005,7 +1007,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "max by (cluster, endpoint_namespace, endpoint, bucket, prefix, depth) (s3mon_prefix_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\", depth=\"1\"})",
+              "expr": "max by (cluster, endpoint_namespace, s3endpoint, bucket, prefix, depth) (s3mon_prefix_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\", depth=\"1\"})",
               "refId": "A",
               "legendFormat": "",
               "instant": true,
@@ -1017,7 +1019,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "max by (cluster, endpoint_namespace, endpoint, bucket, prefix, depth) (s3mon_prefix_objects{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\", depth=\"1\"})",
+              "expr": "max by (cluster, endpoint_namespace, s3endpoint, bucket, prefix, depth) (s3mon_prefix_objects{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\", depth=\"1\"})",
               "refId": "B",
               "legendFormat": "",
               "instant": true,
@@ -1046,16 +1048,18 @@ data:
                   "receive": true,
                   "tenant_id": true,
                   "prometheus": true,
-                  "depth": true
+                  "depth": true,
+                  "endpoint": true,
+                  "exported_endpoint": true
                 },
                 "renameByName": {
                   "cluster": "Cluster",
                   "endpoint_namespace": "Namespace",
-                  "endpoint": "S3Endpoint",
                   "bucket": "Bucket",
                   "prefix": "Folder",
                   "Value #A": "Size",
-                  "Value #B": "Objects"
+                  "Value #B": "Objects",
+                  "s3endpoint": "S3Endpoint"
                 }
               }
             },
@@ -1133,7 +1137,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "sum by (depth) (max by (cluster, endpoint_namespace, endpoint, bucket, depth) (s3mon_folder_count{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))",
+              "expr": "sum by (depth) (max by (cluster, endpoint_namespace, s3endpoint, bucket, depth) (s3mon_folder_count{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\"}))",
               "refId": "A",
               "legendFormat": "depth {{depth}}",
               "range": true,
@@ -1194,7 +1198,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "topk(10, max by (cluster, endpoint_namespace, endpoint, bucket, prefix, depth) (s3mon_prefix_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\", depth=\"1\"}))",
+              "expr": "topk(10, max by (cluster, endpoint_namespace, s3endpoint, bucket, prefix, depth) (s3mon_prefix_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\", depth=\"1\"}))",
               "refId": "A",
               "legendFormat": "{{cluster}} {{bucket}}/{{prefix}}",
               "range": true,
@@ -1255,7 +1259,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "max by (cluster, endpoint_namespace, endpoint, bucket, prefix, depth) (s3mon_prefix_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\", depth=~\"$depth\"})",
+              "expr": "max by (cluster, endpoint_namespace, s3endpoint, bucket, prefix, depth) (s3mon_prefix_size_bytes{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\", depth=~\"$depth\"})",
               "refId": "A",
               "legendFormat": "",
               "instant": true,
@@ -1267,7 +1271,7 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "max by (cluster, endpoint_namespace, endpoint, bucket, prefix, depth) (s3mon_prefix_objects{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\", bucket=~\"$bucket\", depth=~\"$depth\"})",
+              "expr": "max by (cluster, endpoint_namespace, s3endpoint, bucket, prefix, depth) (s3mon_prefix_objects{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\", bucket=~\"$bucket\", depth=~\"$depth\"})",
               "refId": "B",
               "legendFormat": "",
               "instant": true,
@@ -1295,17 +1299,19 @@ data:
                   "clusterID": true,
                   "receive": true,
                   "tenant_id": true,
-                  "prometheus": true
+                  "prometheus": true,
+                  "endpoint": true,
+                  "exported_endpoint": true
                 },
                 "renameByName": {
                   "cluster": "Cluster",
                   "endpoint_namespace": "Namespace",
-                  "endpoint": "S3Endpoint",
                   "bucket": "Bucket",
                   "prefix": "Folder",
                   "depth": "Depth",
                   "Value #A": "Size",
-                  "Value #B": "Objects"
+                  "Value #B": "Objects",
+                  "s3endpoint": "S3Endpoint"
                 }
               }
             },
@@ -1396,9 +1402,9 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "max by (cluster, endpoint_namespace, endpoint) (s3mon_scrape_success{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"} and on (cluster, endpoint_namespace, endpoint, pod) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"} == on (cluster, endpoint_namespace, endpoint) group_left max by (cluster, endpoint_namespace, endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"})))",
+              "expr": "max by (cluster, endpoint_namespace, s3endpoint) (s3mon_scrape_success{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"} and on (cluster, endpoint_namespace, s3endpoint, pod) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"} == on (cluster, endpoint_namespace, s3endpoint) group_left max by (cluster, endpoint_namespace, s3endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"})))",
               "refId": "A",
-              "legendFormat": "{{cluster}} {{endpoint_namespace}}/{{endpoint}}",
+              "legendFormat": "{{cluster}} {{endpoint_namespace}}/{{s3endpoint}}",
               "range": true,
               "instant": false,
               "format": "time_series"
@@ -1459,9 +1465,9 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "max by (cluster, endpoint_namespace, endpoint) (s3mon_scrape_duration_seconds{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"} and on (cluster, endpoint_namespace, endpoint, pod) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"} == on (cluster, endpoint_namespace, endpoint) group_left max by (cluster, endpoint_namespace, endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"})))",
+              "expr": "max by (cluster, endpoint_namespace, s3endpoint) (s3mon_scrape_duration_seconds{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"} and on (cluster, endpoint_namespace, s3endpoint, pod) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"} == on (cluster, endpoint_namespace, s3endpoint) group_left max by (cluster, endpoint_namespace, s3endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"})))",
               "refId": "A",
-              "legendFormat": "{{cluster}} {{endpoint_namespace}}/{{endpoint}}",
+              "legendFormat": "{{cluster}} {{endpoint_namespace}}/{{s3endpoint}}",
               "range": true,
               "instant": false,
               "format": "time_series"
@@ -1520,9 +1526,9 @@ data:
                 "type": "prometheus",
                 "uid": "${datasource}"
               },
-              "expr": "time() - max by (cluster, endpoint_namespace, endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", endpoint=~\"$endpoint\"})",
+              "expr": "time() - max by (cluster, endpoint_namespace, s3endpoint) (s3mon_last_scrape_timestamp{cluster=~\"$cluster\", endpoint_namespace=~\"$endpoint_namespace\", s3endpoint=~\"$endpoint\"})",
               "refId": "A",
-              "legendFormat": "{{cluster}} {{endpoint_namespace}}/{{endpoint}}",
+              "legendFormat": "{{cluster}} {{endpoint_namespace}}/{{s3endpoint}}",
               "range": true,
               "instant": false,
               "format": "time_series"
