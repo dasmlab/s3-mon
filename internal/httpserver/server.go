@@ -99,19 +99,23 @@ func mustSub(f embed.FS, dir string) fs.FS {
 }
 
 type endpointView struct {
-	Name            string `json:"name"`
-	Namespace       string `json:"namespace"`
-	SecretName      string `json:"secretName"`
-	Endpoint        string `json:"endpoint,omitempty"`
-	Region          string `json:"region,omitempty"`
-	Interval        string `json:"interval,omitempty"`
-	FolderDepth     *int32 `json:"folderDepth,omitempty"`
-	Suspend         bool   `json:"suspend"`
-	Ready           bool   `json:"ready"`
-	ObservedBuckets int32  `json:"observedBuckets"`
-	Message         string `json:"message,omitempty"`
-	LastSuccess     string `json:"lastSuccess,omitempty"`
-	LastScrape      string `json:"lastScrape,omitempty"`
+	Name            string   `json:"name"`
+	Namespace       string   `json:"namespace"`
+	SecretName      string   `json:"secretName"`
+	Endpoint        string   `json:"endpoint,omitempty"`
+	Region          string   `json:"region,omitempty"`
+	Interval        string   `json:"interval,omitempty"`
+	FolderDepth     *int32   `json:"folderDepth,omitempty"`
+	Insecure        *bool    `json:"insecure,omitempty"`
+	SkipVerify      *bool    `json:"insecureSkipVerify,omitempty"`
+	ForcePathStyle  *bool    `json:"forcePathStyle,omitempty"`
+	Buckets         []string `json:"buckets,omitempty"`
+	Suspend         bool     `json:"suspend"`
+	Ready           bool     `json:"ready"`
+	ObservedBuckets int32    `json:"observedBuckets"`
+	Message         string   `json:"message,omitempty"`
+	LastSuccess     string   `json:"lastSuccess,omitempty"`
+	LastScrape      string   `json:"lastScrape,omitempty"`
 }
 
 type createRequest struct {
@@ -121,14 +125,15 @@ type createRequest struct {
 		CredentialsSecretRef struct {
 			Name string `json:"name" binding:"required"`
 		} `json:"credentialsSecretRef" binding:"required"`
-		Endpoint       string   `json:"endpoint"`
-		Region         string   `json:"region"`
-		Insecure       *bool    `json:"insecure"`
-		ForcePathStyle *bool    `json:"forcePathStyle"`
-		Interval       string   `json:"interval"`
-		FolderDepth    *int32   `json:"folderDepth"`
-		Buckets        []string `json:"buckets"`
-		Suspend        bool     `json:"suspend"`
+		Endpoint           string   `json:"endpoint"`
+		Region             string   `json:"region"`
+		Insecure           *bool    `json:"insecure"`
+		InsecureSkipVerify *bool    `json:"insecureSkipVerify"`
+		ForcePathStyle     *bool    `json:"forcePathStyle"`
+		Interval           string   `json:"interval"`
+		FolderDepth        *int32   `json:"folderDepth"`
+		Buckets            []string `json:"buckets"`
+		Suspend            bool     `json:"suspend"`
 	} `json:"spec" binding:"required"`
 }
 
@@ -140,6 +145,10 @@ func toView(ep *s3monv1alpha1.S3Endpoint) endpointView {
 		Endpoint:        ep.Spec.Endpoint,
 		Region:          ep.Spec.Region,
 		FolderDepth:     ep.Spec.FolderDepth,
+		Insecure:        ep.Spec.Insecure,
+		SkipVerify:      ep.Spec.InsecureSkipVerify,
+		ForcePathStyle:  ep.Spec.ForcePathStyle,
+		Buckets:         ep.Spec.Buckets,
 		Suspend:         ep.Spec.Suspend,
 		Ready:           ep.Status.Ready,
 		ObservedBuckets: ep.Status.ObservedBuckets,
@@ -200,6 +209,7 @@ func (s *Server) createEndpoint(c *gin.Context) {
 			Endpoint:             req.Spec.Endpoint,
 			Region:               req.Spec.Region,
 			Insecure:             req.Spec.Insecure,
+			InsecureSkipVerify:   req.Spec.InsecureSkipVerify,
 			ForcePathStyle:       req.Spec.ForcePathStyle,
 			FolderDepth:          req.Spec.FolderDepth,
 			Buckets:              req.Spec.Buckets,
@@ -237,6 +247,7 @@ func (s *Server) updateEndpoint(c *gin.Context) {
 	ep.Spec.Endpoint = req.Spec.Endpoint
 	ep.Spec.Region = req.Spec.Region
 	ep.Spec.Insecure = req.Spec.Insecure
+	ep.Spec.InsecureSkipVerify = req.Spec.InsecureSkipVerify
 	ep.Spec.ForcePathStyle = req.Spec.ForcePathStyle
 	ep.Spec.FolderDepth = req.Spec.FolderDepth
 	ep.Spec.Buckets = req.Spec.Buckets

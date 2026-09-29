@@ -50,3 +50,47 @@ config:
 		t.Fatalf("unexpected: %+v", c)
 	}
 }
+
+func TestFromSecretTLSKeys(t *testing.T) {
+	sec := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "s", Namespace: "ns"},
+		Data: map[string][]byte{
+			"endpoint":             []byte("s3.example:443"),
+			"access_key":           []byte("ak"),
+			"secret_key":           []byte("sk"),
+			"insecure_skip_verify": []byte("true"),
+			"ca.crt":               []byte("-----BEGIN CERTIFICATE-----"),
+		},
+	}
+	c, err := s3creds.FromSecret(sec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Insecure || !c.InsecureSkipVerify || len(c.CABundle) == 0 {
+		t.Fatalf("unexpected creds: %+v", c)
+	}
+}
+
+func TestFromSecretThanosYAMLKeySkipVerify(t *testing.T) {
+	raw := `
+type: s3
+config:
+  endpoint: s3.example:443
+  access_key: A
+  secret_key: B
+  http_config:
+    tls_config:
+      insecure_skip_verify: true
+`
+	sec := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: "s", Namespace: "ns"},
+		Data:       map[string][]byte{"thanos.yaml": []byte(raw)},
+	}
+	c, err := s3creds.FromSecret(sec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Endpoint != "s3.example:443" || c.Insecure || !c.InsecureSkipVerify {
+		t.Fatalf("unexpected: %+v", c)
+	}
+}

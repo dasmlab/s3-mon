@@ -39,9 +39,15 @@ type S3EndpointSpec struct {
 	// +kubebuilder:default="us-east-1"
 	Region string `json:"region,omitempty"`
 
-	// Insecure allows HTTP (useful for MinIO / lab endpoints).
+	// Insecure switches to plain HTTP (Thanos semantics). It does NOT skip
+	// TLS verification; use InsecureSkipVerify for that.
 	// +optional
 	Insecure *bool `json:"insecure,omitempty"`
+
+	// InsecureSkipVerify keeps HTTPS but skips certificate verification
+	// (self-signed / untrusted CA). Prefer a ca.crt key in the secret.
+	// +optional
+	InsecureSkipVerify *bool `json:"insecureSkipVerify,omitempty"`
 
 	// ForcePathStyle forces path-style addressing (required by many MinIO setups).
 	// +optional

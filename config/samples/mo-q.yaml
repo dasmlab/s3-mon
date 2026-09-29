@@ -1,0 +1,42 @@
+# S3Endpoint for mo-q. Fill in the CHANGE_ME values, then:
+#   oc apply -f config/samples/mo-q.yaml
+#
+# HTTPS with a private CA, pick one:
+#   - cluster-wide: add the CA to proxy/cluster spec.trustedCA (see README); nothing to set here
+#   - per endpoint: add a ca.crt key to the secret
+#   - no CA at hand: insecureSkipVerify: true
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mo-q-s3-creds
+  namespace: s3-mon
+type: Opaque
+stringData:
+  # host[:port], no scheme (https:// is stripped if pasted)
+  endpoint: CHANGE_ME.example.com
+  access_key: CHANGE_ME
+  secret_key: CHANGE_ME
+  # ca.crt: |
+  #   -----BEGIN CERTIFICATE-----
+  #   ...
+  #   -----END CERTIFICATE-----
+---
+apiVersion: s3mon.dasmlab.org/v1alpha1
+kind: S3Endpoint
+metadata:
+  name: mo-q
+  namespace: s3-mon
+spec:
+  credentialsSecretRef:
+    name: mo-q-s3-creds
+  region: us-east-1
+  # true = plain HTTP. Does not affect certificate checks.
+  insecure: false
+  # true = HTTPS without certificate verification
+  insecureSkipVerify: false
+  # true for MinIO / ODF / most on-prem S3; false for AWS virtual-host style
+  forcePathStyle: true
+  interval: 5m
+  folderDepth: 3
+  # empty = every bucket the credentials can ListBuckets on
+  buckets: []

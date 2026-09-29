@@ -126,6 +126,30 @@ __CRD__
                     name: s3-mon-controller
                     namespace: s3-mon
 
+            # 4b) CA bundles for HTTPS S3 endpoints, filled in by OpenShift and added to the manager's trust store:
+            #     trusted-ca = system roots + proxy/cluster spec.trustedCA; service-ca = *.svc certs (e.g. ODF/NooBaa).
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: s3-mon-trusted-ca
+                  namespace: s3-mon
+                  labels:
+                    app: s3-mon
+                    config.openshift.io/inject-trusted-cabundle: "true"
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: ConfigMap
+                metadata:
+                  name: s3-mon-service-ca
+                  namespace: s3-mon
+                  labels:
+                    app: s3-mon
+                  annotations:
+                    service.beta.openshift.io/inject-cabundle: "true"
+
             # 5) Deployment
             - complianceType: musthave
               objectDefinition:
@@ -161,6 +185,16 @@ __CRD__
                             - --ui-bind-address=127.0.0.1:8091
                             - --health-probe-bind-address=:8081
                             - --leader-elect=false
+                          env:
+                            - name: SSL_CERT_DIR
+                              value: /etc/ssl/certs:/etc/pki/s3-mon/trusted-ca:/etc/pki/s3-mon/service-ca
+                          volumeMounts:
+                            - name: trusted-ca
+                              mountPath: /etc/pki/s3-mon/trusted-ca
+                              readOnly: true
+                            - name: service-ca
+                              mountPath: /etc/pki/s3-mon/service-ca
+                              readOnly: true
                           ports:
                             - name: http
                               containerPort: 8090
@@ -246,6 +280,14 @@ __CRD__
                         - name: proxy-tls
                           secret:
                             secretName: s3-mon-tls
+                        - name: trusted-ca
+                          configMap:
+                            name: s3-mon-trusted-ca
+                            optional: true
+                        - name: service-ca
+                          configMap:
+                            name: s3-mon-service-ca
+                            optional: true
 
             # 6) Service — metrics on http (in-cluster only), UI/API via oauth-proxy on https.
             #    service-ca issues the s3-mon-tls serving cert used by the proxy and trusted by the router.

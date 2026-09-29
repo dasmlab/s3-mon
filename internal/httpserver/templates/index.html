@@ -136,6 +136,28 @@
         <label>Region <input id="f-region" placeholder="us-east-1" /></label>
         <label>Interval <input id="f-interval" placeholder="5m" /></label>
         <label>Folder depth <input id="f-depth" type="number" min="1" max="10" placeholder="{{.DepthHint}}" /></label>
+        <label>Buckets <input id="f-buckets" placeholder="all (comma-separated to limit)" /></label>
+        <label>Plain HTTP (insecure)
+          <select id="f-insecure">
+            <option value="">default</option>
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <label>Skip TLS verify
+          <select id="f-skipverify">
+            <option value="">default</option>
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
+        <label>Force path style
+          <select id="f-pathstyle">
+            <option value="">default</option>
+            <option value="true">true</option>
+            <option value="false">false</option>
+          </select>
+        </label>
         <label>Suspend
           <select id="f-suspend">
             <option value="false">false</option>
@@ -152,6 +174,7 @@
     </section>
   </main>
   <script>
+    function triStr(v) { return v === true ? 'true' : (v === false ? 'false' : ''); }
     function msg(t) { document.getElementById('msg').textContent = t || ''; }
     function resetForm() {
       document.getElementById('form-title').textContent = 'Create S3Endpoint';
@@ -161,6 +184,7 @@
       document.getElementById('f-ns').disabled = false;
       ['f-name','f-ns','f-secret','f-endpoint','f-region','f-interval','f-depth'].forEach(id => document.getElementById(id).value = '');
       document.getElementById('f-suspend').value = 'false';
+      ['f-buckets','f-insecure','f-skipverify','f-pathstyle'].forEach(id => document.getElementById(id).value = '');
       msg('');
     }
     async function loadIntoForm(ns, name) {
@@ -180,6 +204,10 @@
       document.getElementById('f-interval').value = j.interval || '';
       document.getElementById('f-depth').value = j.folderDepth != null ? j.folderDepth : '';
       document.getElementById('f-suspend').value = j.suspend ? 'true' : 'false';
+      document.getElementById('f-buckets').value = (j.buckets || []).join(',');
+      document.getElementById('f-insecure').value = triStr(j.insecure);
+      document.getElementById('f-skipverify').value = triStr(j.insecureSkipVerify);
+      document.getElementById('f-pathstyle').value = triStr(j.forcePathStyle);
       msg('');
     }
     function bodyFromForm() {
@@ -196,6 +224,12 @@
         }
       };
       if (depth !== '') payload.spec.folderDepth = Number(depth);
+      const buckets = document.getElementById('f-buckets').value.split(',').map(b => b.trim()).filter(Boolean);
+      if (buckets.length) payload.spec.buckets = buckets;
+      [['f-insecure','insecure'],['f-skipverify','insecureSkipVerify'],['f-pathstyle','forcePathStyle']].forEach(([id, key]) => {
+        const v = document.getElementById(id).value;
+        if (v !== '') payload.spec[key] = v === 'true';
+      });
       return payload;
     }
     async function save(ev) {

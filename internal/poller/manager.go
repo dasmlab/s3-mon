@@ -128,6 +128,9 @@ func (m *Manager) scrapeOnce(ctx context.Context, key types.NamespacedName) {
 	if ep.Spec.Insecure != nil {
 		creds.Insecure = *ep.Spec.Insecure
 	}
+	if ep.Spec.InsecureSkipVerify != nil {
+		creds.InsecureSkipVerify = *ep.Spec.InsecureSkipVerify
+	}
 	if ep.Spec.ForcePathStyle != nil {
 		creds.ForcePathStyle = *ep.Spec.ForcePathStyle
 	}
@@ -141,6 +144,8 @@ func (m *Manager) scrapeOnce(ctx context.Context, key types.NamespacedName) {
 		"s3_endpoint", creds.Endpoint,
 		"region", creds.Region,
 		"insecure", creds.Insecure,
+		"insecureSkipVerify", creds.InsecureSkipVerify,
+		"customCA", len(creds.CABundle) > 0,
 		"forcePathStyle", creds.ForcePathStyle,
 		"folderDepth", depth,
 		"bucketAllowlist", ep.Spec.Buckets,
@@ -153,7 +158,11 @@ func (m *Manager) scrapeOnce(ctx context.Context, key types.NamespacedName) {
 	scanCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	cli := s3scan.New(creds)
+	cli, err := s3scan.New(creds)
+	if err != nil {
+		m.fail(ctx, &ep, start, err)
+		return
+	}
 	res, err := cli.Scan(scanCtx, ep.Spec.Buckets, depth)
 	dur := time.Since(start).Seconds()
 	ts := float64(time.Now().Unix())

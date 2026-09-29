@@ -35,7 +35,32 @@ stringData:
   forcePathStyle: "true"
 ```
 
-Also accepted: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, and a Thanos objstore YAML blob under key `config`.
+Also accepted: `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, and a Thanos objstore YAML blob under key
+`config` or `thanos.yaml` (so a copy of the MCO `thanos-object-storage` secret works as-is).
+
+### HTTPS with a private / self-signed CA
+
+`insecure: true` means **plain HTTP** (Thanos semantics); it never disables certificate checks.
+For an HTTPS endpoint whose CA isn't trusted, any one of these works (tested with a private CA):
+
+1. **Cluster-wide (preferred).** The operator trusts the OpenShift trusted CA bundle and the service CA
+   (`*.svc`, e.g. ODF/NooBaa). Add your S3 CA to the cluster once:
+
+   ```bash
+   # grab the last cert the endpoint presents (root/intermediate, or the cert itself if self-signed)
+   openssl s_client -connect S3_HOST:443 -showcerts </dev/null 2>/dev/null \
+     | awk '/BEGIN CERT/{c=""} {c=c $0 "\n"} /END CERT/{last=c} END{printf "%s", last}' > s3-ca.pem
+   oc -n openshift-config create configmap s3-custom-ca --from-file=ca-bundle.crt=s3-ca.pem
+   oc patch proxy/cluster --type=merge -p '{"spec":{"trustedCA":{"name":"s3-custom-ca"}}}'
+   oc -n s3-mon rollout restart deploy/s3-mon-controller
+   ```
+
+   If `proxy/cluster` already has a `trustedCA`, append `s3-ca.pem` to that ConfigMap's `ca-bundle.crt`
+   instead of replacing it.
+2. **Per endpoint.** Add a `ca.crt` key (PEM) to the credentials secret:
+   `oc -n s3-mon set data secret/mo-q-s3-creds --from-file=ca.crt=s3-ca.pem`
+3. **Skip verification.** `spec.insecureSkipVerify: true` (or secret key `insecure_skip_verify: "true"`, or
+   Thanos `http_config.tls_config.insecure_skip_verify: true`).
 
 ## UI + CRUD API
 

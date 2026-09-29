@@ -93,7 +93,14 @@ spec:
                   by many MinIO setups).
                 type: boolean
               insecure:
-                description: Insecure allows HTTP (useful for MinIO / lab endpoints).
+                description: |-
+                  Insecure switches to plain HTTP (Thanos semantics). It does NOT skip
+                  TLS verification; use InsecureSkipVerify for that.
+                type: boolean
+              insecureSkipVerify:
+                description: |-
+                  InsecureSkipVerify keeps HTTPS but skips certificate verification
+                  (self-signed / untrusted CA). Prefer a ca.crt key in the secret.
                 type: boolean
               interval:
                 default: 5m

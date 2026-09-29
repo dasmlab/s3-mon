@@ -2,11 +2,15 @@ package s3scan
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"log"
+	"net/http"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dasmlab/s3-mon/internal/s3creds"
@@ -42,18 +46,25 @@ type Client struct {
 }
 
 // New builds an S3 client from Creds.
-func New(c s3creds.Creds) *Client {
+func New(c s3creds.Creds) (*Client, error) {
 	scheme := "https"
 	if c.Insecure {
 		scheme = "http"
 	}
 	base := fmt.Sprintf("%s://%s", scheme, c.Endpoint)
 
+	tlsCfg, err := tlsConfig(c)
+	if err != nil {
+		return nil, err
+	}
 	cfg := aws.Config{
 		Region: c.Region,
 		Credentials: credentials.NewStaticCredentialsProvider(
 			c.AccessKey, c.SecretKey, "",
 		),
+		HTTPClient: awshttp.NewBuildableClient().WithTransportOptions(func(tr *http.Transport) {
+			tr.TLSClientConfig = tlsCfg
+		}),
 	}
 	cli := s3.NewFromConfig(cfg, func(o *s3.Options) {
 		o.BaseEndpoint = aws.String(base)
@@ -64,7 +75,26 @@ func New(c s3creds.Creds) *Client {
 		logf: func(f string, a ...any) {
 			log.Printf("s3scan: "+f, a...)
 		},
+	}, nil
+}
+
+func tlsConfig(c s3creds.Creds) (*tls.Config, error) {
+	cfg := &tls.Config{
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: c.InsecureSkipVerify,
 	}
+	if len(c.CABundle) == 0 {
+		return cfg, nil
+	}
+	pool, err := x509.SystemCertPool()
+	if err != nil || pool == nil {
+		pool = x509.NewCertPool()
+	}
+	if !pool.AppendCertsFromPEM(c.CABundle) {
+		return nil, fmt.Errorf("ca bundle: no valid PEM certificates found")
+	}
+	cfg.RootCAs = pool
+	return cfg, nil
 }
 
 // Scan lists buckets (or uses allowlist) and gathers size / folder stats.

@@ -11,12 +11,16 @@ import (
 
 // Creds is the resolved S3 connection configuration.
 type Creds struct {
-	Endpoint       string
-	AccessKey      string
-	SecretKey      string
-	Region         string
-	Insecure       bool
-	ForcePathStyle bool
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	Region    string
+	// Insecure means plain HTTP (Thanos semantics), not "skip TLS verify".
+	Insecure           bool
+	InsecureSkipVerify bool
+	ForcePathStyle     bool
+	// CABundle is extra PEM trusted on top of the system/cluster roots.
+	CABundle []byte
 }
 
 // FromSecret parses a Secret using Thanos-style discrete keys (preferred),
@@ -38,7 +42,7 @@ func FromSecret(sec *corev1.Secret) (Creds, error) {
 		Region:    get("region", "Region", "AWS_REGION", "AWS_DEFAULT_REGION"),
 	}
 
-	if raw := get("config"); raw != "" {
+	if raw := get("config", "thanos.yaml"); raw != "" {
 		if err := mergeThanosConfig(&c, raw); err != nil {
 			return Creds{}, err
 		}
@@ -47,8 +51,14 @@ func FromSecret(sec *corev1.Secret) (Creds, error) {
 	if v := get("insecure", "Insecure"); v != "" {
 		c.Insecure, _ = strconv.ParseBool(v)
 	}
+	if v := get("insecure_skip_verify", "insecureSkipVerify", "InsecureSkipVerify"); v != "" {
+		c.InsecureSkipVerify, _ = strconv.ParseBool(v)
+	}
 	if v := get("forcePathStyle", "force_path_style", "ForcePathStyle"); v != "" {
 		c.ForcePathStyle, _ = strconv.ParseBool(v)
+	}
+	if v := get("ca.crt", "ca-bundle.crt", "ca_bundle", "caBundle"); v != "" {
+		c.CABundle = []byte(v)
 	}
 
 	if c.AccessKey == "" || c.SecretKey == "" {
@@ -78,6 +88,12 @@ type thanosS3Config struct {
 	Region         string `yaml:"region"`
 	Insecure       bool   `yaml:"insecure"`
 	ForcePathStyle *bool  `yaml:"force_path_style"`
+	HTTPConfig     struct {
+		InsecureSkipVerify bool `yaml:"insecure_skip_verify"`
+		TLSConfig          struct {
+			InsecureSkipVerify bool `yaml:"insecure_skip_verify"`
+		} `yaml:"tls_config"`
+	} `yaml:"http_config"`
 }
 
 func mergeThanosConfig(c *Creds, raw string) error {
@@ -108,6 +124,9 @@ func mergeThanosConfig(c *Creds, raw string) error {
 	}
 	if cfg.ForcePathStyle != nil {
 		c.ForcePathStyle = *cfg.ForcePathStyle
+	}
+	if cfg.HTTPConfig.InsecureSkipVerify || cfg.HTTPConfig.TLSConfig.InsecureSkipVerify {
+		c.InsecureSkipVerify = true
 	}
 	return nil
 }

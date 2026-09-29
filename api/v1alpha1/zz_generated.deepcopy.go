@@ -93,6 +93,11 @@ func (in *S3EndpointSpec) DeepCopyInto(out *S3EndpointSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.InsecureSkipVerify != nil {
+		in, out := &in.InsecureSkipVerify, &out.InsecureSkipVerify
+		*out = new(bool)
+		**out = **in
+	}
 	if in.ForcePathStyle != nil {
 		in, out := &in.ForcePathStyle, &out.ForcePathStyle
 		*out = new(bool)
