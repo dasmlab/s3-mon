@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go"
 	"github.com/dasmlab/s3-mon/internal/s3creds"
 )
 
@@ -34,9 +36,18 @@ type BucketStat struct {
 	Prefixes     []PrefixStat
 }
 
+// SkippedBucket is a bucket left out of a scrape because it is gone or not
+// listable. MinIO still returns such buckets from ListBuckets after the
+// on-disk directory is removed, then fails ListObjects with InvalidBucketState.
+type SkippedBucket struct {
+	Name   string
+	Reason string
+}
+
 // Result is a full scrape.
 type Result struct {
 	Buckets []BucketStat
+	Skipped []SkippedBucket
 }
 
 // Client wraps aws-sdk-go-v2 S3.
@@ -114,16 +125,64 @@ func (c *Client) Scan(ctx context.Context, allow []string, folderDepth int) (Res
 		c.logf("ListBuckets -> %d buckets", len(names))
 	}
 
-	var res Result
+	// A removed bucket can still show up in ListBuckets. ListObjects then
+	// returns NoSuchBucket, or InvalidBucketState when the root directory
+	// is gone. Skip those and keep the rest of the endpoint healthy.
+	res := Result{Buckets: make([]BucketStat, 0, len(names))}
+	skipped := make([]SkippedBucket, 0)
 	for _, name := range names {
 		c.logf("scanning bucket=%s depth=%d", name, folderDepth)
 		st, err := c.scanBucket(ctx, name, folderDepth)
 		if err != nil {
+			if unavailableBucket(err) {
+				reason := bucketErrReason(err)
+				c.logf("skipping unavailable bucket=%s: %s", name, reason)
+				skipped = append(skipped, SkippedBucket{Name: name, Reason: reason})
+				continue
+			}
 			return Result{}, fmt.Errorf("bucket %s: %w", name, err)
 		}
 		res.Buckets = append(res.Buckets, st)
 	}
+	if len(res.Buckets) == 0 && len(skipped) > 0 {
+		return Result{}, fmt.Errorf("all buckets unavailable: %s", formatSkipped(skipped))
+	}
+	res.Skipped = skipped
 	return res, nil
+}
+
+func unavailableBucket(err error) bool {
+	var api smithy.APIError
+	if errors.As(err, &api) {
+		switch api.ErrorCode() {
+		case "NoSuchBucket", "NotFound", "InvalidBucketState":
+			return true
+		}
+	}
+	var re *awshttp.ResponseError
+	if errors.As(err, &re) && re.Response != nil && re.Response.StatusCode == http.StatusNotFound {
+		return true
+	}
+	return false
+}
+
+func bucketErrReason(err error) string {
+	var api smithy.APIError
+	if errors.As(err, &api) {
+		if msg := api.ErrorMessage(); msg != "" {
+			return api.ErrorCode() + ": " + msg
+		}
+		return api.ErrorCode()
+	}
+	return err.Error()
+}
+
+func formatSkipped(skipped []SkippedBucket) string {
+	parts := make([]string, len(skipped))
+	for i, s := range skipped {
+		parts[i] = s.Name + " (" + s.Reason + ")"
+	}
+	return strings.Join(parts, ", ")
 }
 
 func (c *Client) scanBucket(ctx context.Context, bucket string, maxDepth int) (BucketStat, error) {

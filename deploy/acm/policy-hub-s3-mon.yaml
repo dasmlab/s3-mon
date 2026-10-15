@@ -381,7 +381,7 @@ spec:
                           type: RuntimeDefault
                       containers:
                         - name: manager
-                          image: ghcr.io/dasmlab/s3-mon:v0.4.0
+                          image: ghcr.io/dasmlab/s3-mon:v0.4.1
                           imagePullPolicy: IfNotPresent
                           args:
                             - --metrics-bind-address=0

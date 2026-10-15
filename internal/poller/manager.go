@@ -3,6 +3,7 @@ package poller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -192,6 +193,14 @@ func (m *Manager) scrapeOnce(ctx context.Context, key types.NamespacedName) {
 	ep.Status.LastScrapeTime = &now
 	ep.Status.LastSuccessTime = &now
 	ep.Status.Message = fmt.Sprintf("ok: %d buckets, %d bytes total (%.1fs)", len(res.Buckets), totalBytes, dur)
+	if len(res.Skipped) > 0 {
+		names := make([]string, len(res.Skipped))
+		for i, s := range res.Skipped {
+			names[i] = s.Name
+		}
+		ep.Status.Message += fmt.Sprintf("; skipped unavailable: %s", strings.Join(names, ", "))
+		log.Info("skipped unavailable buckets", "buckets", names)
+	}
 	setCond(&ep, "Ready", metav1.ConditionTrue, "ScrapeSucceeded", ep.Status.Message)
 	if err := m.patchStatus(ctx, key, func(cur *s3monv1alpha1.S3Endpoint) {
 		cur.Status = ep.Status
